@@ -55,10 +55,10 @@ def detect_red_light(I):
     return bounding_boxes
 
 # set the path to the downloaded data: 
-data_path = '../data/RedLights2011_Medium'
+data_path = 'data/RedLights2011_Medium'
 
 # set a path for saving predictions: 
-preds_path = '../data/hw01_preds' 
+preds_path = 'data/hw01_preds' 
 os.makedirs(preds_path,exist_ok=True) # create directory if needed 
 
 # get sorted list of files: 
