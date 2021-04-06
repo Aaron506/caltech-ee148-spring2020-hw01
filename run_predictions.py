@@ -37,7 +37,9 @@ def findRed(I, disp=False):
     mask = hue * sat * value
     if disp:
         im = Image.fromarray(mask * 255)
-        im.show()
+        # im.show()
+        plt.figure()
+        plt.imshow(np.array(im))
     return np.transpose(np.where(mask)), mask
     
 def fitCircle(cluster):
@@ -74,8 +76,9 @@ def findEdges(mask, disp=False):
     edgeMask = padded * edgeMask   
     
     if disp:
+        plt.figure()
         plt.imshow(edgeMask)
-            
+        
     return np.transpose(np.where(edgeMask)), edgeMask    
 
 # Sliding window clustering where thresh dictates square window size
@@ -105,10 +108,10 @@ def clusterPixels(pixels, mask, thresh):
 def initialPart(I, THRESH, MINSIZE, MAXSIZE, CIRCLETHRESH, ACCEPT, disp=False, BACKBOARD=False):
     bounding_boxes = []
     
-    redPixels, mask = findRed(I, False)
+    redPixels, mask = findRed(I, disp)
             
     # Find edges first
-    pixels, edgeMask = findEdges(mask, False)
+    pixels, edgeMask = findEdges(mask, disp)
     
     # List of lists where each inner list is one cluster of red pixels
     clusters = clusterPixels(pixels, edgeMask, THRESH)
@@ -146,7 +149,9 @@ def initialPart(I, THRESH, MINSIZE, MAXSIZE, CIRCLETHRESH, ACCEPT, disp=False, B
             draw.ellipse((x-r, y-r, x+r, y+r))
          
     if disp:
-        im.show()
+        plt.figure()
+        plt.imshow(np.array(im))
+        # im.show()
 
     # print('Costs', costs)
 
@@ -170,7 +175,9 @@ def initialPart(I, THRESH, MINSIZE, MAXSIZE, CIRCLETHRESH, ACCEPT, disp=False, B
         y0, x0, y1, x1 = box
         draw.rectangle([x0, y0, x1, y1])
     if disp:
-        im.show()
+        plt.figure()
+        plt.imshow(np.array(im))
+        # im.show()
         
     return bounding_boxes
 
@@ -285,7 +292,8 @@ def blackBack(I, redFound, circles, threshBlack, threshJoined, disp=False):
             bounding_boxes.append([int(ymin), int(xmin), int(ymax), int(xmax)])   
     
     if disp:
-        im.show()
+        plt.figure()
+        plt.imshow(np.array(im))
     
     return bounding_boxes
 
@@ -393,8 +401,15 @@ def detect_red_light(I):
     
     return bounding_boxes
 
+
+### Constants which control program flow ###
+
 # controls whether to save labeled images
 saveLabeled = True
+# controls whether to try to predict on full data
+fullPred = False
+
+######
 
 # set the path to the downloaded data: 
 data_path = 'data/RedLights2011_Medium'
@@ -403,39 +418,69 @@ data_path = 'data/RedLights2011_Medium'
 preds_path = 'data/hw01_preds' 
 os.makedirs(preds_path,exist_ok=True) # create directory if needed 
 
-# get sorted list of files: 
-file_names = sorted(os.listdir(data_path)) 
+### Running Code for Questions 4 and 5 ###
 
-# remove any non-JPEG files: 
-file_names = [f for f in file_names if '.jpg' in f] 
+# Worst Examples
+worst_names = ['RL-017.jpg', 'RL-064.jpg', 'RL-149.jpg', 'RL-273.jpg', 'RL-244.jpg']
 
-# In-sample
-# file_names = ['RL-001.jpg', 'RL-002.jpg', 'RL-003.jpg', 'RL-004.jpg', 'RL-005.jpg', 'RL-006.jpg', 'RL-007.jpg', 'RL-008.jpg', 'RL-009.jpg', 'RL-010.jpg']
-# Out-sample
-# file_names = ['RL-325.jpg', 'RL-326.jpg', 'RL-327.jpg', 'RL-328.jpg', 'RL-329.jpg', 'RL-330.jpg', 'RL-331.jpg', 'RL-332.jpg', 'RL-333.jpg', 'RL-334.jpg']
+# Best Examples
+best_names = ['RL-031.jpg', 'RL-139.jpg', 'RL-196.jpg', 'RL-248.jpg']
 
-preds = {}
-for i in range(len(file_names)):
-    print('On image ' + str(i))
-    # read image using PIL:
-    I = Image.open(os.path.join(data_path,file_names[i]))
-    
-    # convert to numpy array:
-    I = np.asarray(I)
-    
-    bounding_boxes = detect_red_light(I)
-    
-    preds[file_names[i]] = bounding_boxes
+for i, group in enumerate([worst_names, best_names]):
+    path = preds_path + '/'+ 'worst'*(1-i) + 'best'*i
+    for j, name in enumerate(group):
+        print('On image ' + name)
+        
+        # read image using PIL:
+        I = Image.open(os.path.join(data_path,group[j]))
+        
+        # convert to numpy array:
+        I = np.asarray(I)
+        
+        bounding_boxes = detect_red_light(I)
+            
+        labeled = visualize(I, bounding_boxes, False)
+        
+        if saveLabeled:
+            os.makedirs(path,exist_ok=True) # create directory if needed 
+            saveImage(labeled, path + '/labeled' + name + '.jpg')
+            
+#######
 
-    labeled = visualize(I, bounding_boxes, False)
+if fullPred:
+    # get sorted list of files: 
+    file_names = sorted(os.listdir(data_path)) 
     
-    if saveLabeled:
-        saveImage(labeled, preds_path + '/labeled' + str(i) + '.jpg')
+    # remove any non-JPEG files: 
+    file_names = [f for f in file_names if '.jpg' in f] 
     
-# save preds (overwrites any previous predictions!)
-with open(os.path.join(preds_path,'preds.json'),'w') as f:
-    json.dump(preds,f)
+    # In-sample
+    # file_names = ['RL-001.jpg', 'RL-002.jpg', 'RL-003.jpg', 'RL-004.jpg', 'RL-005.jpg', 'RL-006.jpg', 'RL-007.jpg', 'RL-008.jpg', 'RL-009.jpg', 'RL-010.jpg']
+    # Out-sample
+    # file_names = ['RL-325.jpg', 'RL-326.jpg', 'RL-327.jpg', 'RL-328.jpg', 'RL-329.jpg', 'RL-330.jpg', 'RL-331.jpg', 'RL-332.jpg', 'RL-333.jpg', 'RL-334.jpg']
     
+    preds = {}
+    for i in range(len(file_names)):
+        print('On image ' + str(i))
+        # read image using PIL:
+        I = Image.open(os.path.join(data_path,file_names[i]))
+        
+        # convert to numpy array:
+        I = np.asarray(I)
+        
+        bounding_boxes = detect_red_light(I)
+        
+        preds[file_names[i]] = bounding_boxes
+    
+        labeled = visualize(I, bounding_boxes, False)
+        
+        if saveLabeled:
+            saveImage(labeled, preds_path + '/labeled' + str(i) + '.jpg')
+        
+    # save preds (overwrites any previous predictions!)
+    with open(os.path.join(preds_path,'preds.json'),'w') as f:
+        json.dump(preds,f)
+        
 
 
 ### Dead Code ###
